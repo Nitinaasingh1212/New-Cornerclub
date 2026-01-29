@@ -33,11 +33,20 @@ export async function createEvent(data: Event) {
 
     if (!res.ok) {
         let errorMsg = "Failed to create event";
-        try {
-            const errorData = await res.json();
-            errorMsg = errorData.details || errorData.error || errorMsg;
-        } catch (e) {
-            errorMsg = `Server Error (${res.status})`;
+        const contentType = res.headers.get("content-type");
+
+        if (contentType && contentType.includes("application/json")) {
+            try {
+                const errorData = await res.json();
+                errorMsg = errorData.details || errorData.error || errorMsg;
+            } catch (e) {
+                errorMsg = `Server Error (${res.status})`;
+            }
+        } else {
+            // It's likely an HTML error page from Hostinger/Next.js
+            const text = await res.text();
+            console.error("Non-JSON Error Response:", text);
+            errorMsg = `Server Error (${res.status}): The server returned an HTML page instead of JSON. This usually means a crash or a database connection failure.`;
         }
         throw new Error(errorMsg);
     }
