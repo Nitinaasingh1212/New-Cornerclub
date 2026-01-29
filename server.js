@@ -1,6 +1,11 @@
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
+const path = require('path');
+
+// Load environment variables from .env.local or .env
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env.local') });
+require('dotenv').config(); // Fallback to standard .env
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
