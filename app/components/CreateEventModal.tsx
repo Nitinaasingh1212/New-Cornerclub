@@ -226,7 +226,8 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
             alert("Event submitted for approval!"); // Changed alert message
         } catch (error: any) {
             console.error("Error creating event:", error);
-            alert(`Database Error:\n${error.message}\n\nPlease take a screenshot of this message.`);
+            const errorMessage = error.message || (typeof error === 'string' ? error : "Unknown Error");
+            alert(`Database Error:\n${errorMessage}\n\nPlease check if your Hostinger database has all required columns.`);
         }
     };
 

@@ -32,8 +32,14 @@ export async function createEvent(data: Event) {
     });
 
     if (!res.ok) {
-        const errorData = await res.json();
-        throw errorData.error || "Failed to create event";
+        let errorMsg = "Failed to create event";
+        try {
+            const errorData = await res.json();
+            errorMsg = errorData.details || errorData.error || errorMsg;
+        } catch (e) {
+            errorMsg = `Server Error (${res.status})`;
+        }
+        throw new Error(errorMsg);
     }
     return res.json();
 }
