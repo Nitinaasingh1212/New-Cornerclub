@@ -61,7 +61,15 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
                     onClose();
                     router.push("/profile");
                 } else if (profile.phone) {
-                    setFormData(prev => ({ ...prev, organizerPhone: profile.phone }));
+                    setFormData(prev => ({
+                        ...prev,
+                        organizerName: profile.name || prev.organizerName,
+                        organizerPhone: profile.phone,
+                        city: profile.city || prev.city,
+                        socialInstagram: profile.instagram || prev.socialInstagram,
+                        socialFacebook: profile.facebook || prev.socialFacebook,
+                        socialYoutube: profile.youtube || prev.socialYoutube
+                    }));
                 }
             });
         }

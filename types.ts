@@ -16,6 +16,16 @@ export interface Event {
     };
     capacity: number;
     attendees: number;
+    organizer?: string;
+    phone?: string;
+    address?: string;
+    social?: {
+        instagram?: string;
+        facebook?: string;
+        youtube?: string;
+    };
+    gallery?: string[];
     isSaved?: boolean;
     status?: string;
+    createdAt?: string;
 }

@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getUserBookings, getFavoriteEvents, getUserHostedEvents, getUserProfile, updateUserProfile } from "@/lib/firestore";
 import { Button } from "@/app/components/ui/Button";
 import { EventCard } from "@/app/components/EventCard";
-import { Settings, LogOut, Heart, Clock, Image as ImageIcon, Trash2, Plus, Users } from "lucide-react";
+import { Settings, LogOut, Heart, Clock, Image as ImageIcon, Trash2, Plus, Users, Check, Loader2 } from "lucide-react";
 import { AttendeeModal } from "@/app/components/AttendeeModal";
 
 export default function ProfilePage() {
@@ -29,6 +29,8 @@ export default function ProfilePage() {
     const [profileData, setProfileData] = useState<any>({});
 
     const [savingProfile, setSavingProfile] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     // Attendee Modal State
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -68,11 +70,40 @@ export default function ProfilePage() {
                             email: user.email || ""
                         });
                     }
-                }).catch(console.error);
+                }).catch(console.error).finally(() => {
+                    // Give a small delay before enabling auto-save to avoid initial values triggering it
+                    setTimeout(() => setIsInitialLoad(false), 1000);
+                });
             }
         }
         fetchData();
     }, [user]);
+
+    // AUTO-SAVE LOGIC
+    useEffect(() => {
+        if (isInitialLoad || !user) return;
+
+        // Validation: Required fields must be present
+        if (!profileData.name || !profileData.email || !profileData.phone) {
+            setSaveStatus("idle"); // Don't show "Saved" if invalid
+            return;
+        }
+
+        setSaveStatus("saving");
+        const timer = setTimeout(async () => {
+            try {
+                await updateUserProfile(user.uid, profileData);
+                setSaveStatus("saved");
+                // Reset to idle after 3 seconds of success
+                setTimeout(() => setSaveStatus("idle"), 3000);
+            } catch (error) {
+                console.error("Auto-save failed", error);
+                setSaveStatus("error");
+            }
+        }, 1500); // 1.5s debounce
+
+        return () => clearTimeout(timer);
+    }, [profileData, user, isInitialLoad]);
 
     const handleSaveProfile = async () => {
         if (!user) return;
@@ -152,7 +183,30 @@ export default function ProfilePage() {
                                 <p className="text-zinc-500">{profileData.email || user.email}</p>
                             </div>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col gap-3 items-end">
+                            {/* Save Status Indicator */}
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-50 dark:bg-zinc-800 text-xs font-medium">
+                                {saveStatus === "saving" && (
+                                    <>
+                                        <Loader2 className="h-3 w-3 animate-spin text-[#f98109]" />
+                                        <span className="text-zinc-500">Saving changes...</span>
+                                    </>
+                                )}
+                                {saveStatus === "saved" && (
+                                    <>
+                                        <Check className="h-3 w-3 text-green-500" />
+                                        <span className="text-green-600">All changes saved</span>
+                                    </>
+                                )}
+                                {saveStatus === "error" && (
+                                    <>
+                                        <span className="text-red-500">Save failed</span>
+                                    </>
+                                )}
+                                {saveStatus === "idle" && (
+                                    <span className="text-zinc-400">Profile synced</span>
+                                )}
+                            </div>
                             <Button
                                 variant="outline"
                                 onClick={logout}
@@ -207,6 +261,36 @@ export default function ProfilePage() {
                                     placeholder="New York, NY"
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Instagram (@handle)</label>
+                                <input
+                                    type="text"
+                                    value={profileData.instagram || ""}
+                                    onChange={(e) => setProfileData({ ...profileData, instagram: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                    placeholder="@username"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Facebook URL</label>
+                                <input
+                                    type="text"
+                                    value={profileData.facebook || ""}
+                                    onChange={(e) => setProfileData({ ...profileData, facebook: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                    placeholder="facebook.com/..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">YouTube Channel</label>
+                                <input
+                                    type="text"
+                                    value={profileData.youtube || ""}
+                                    onChange={(e) => setProfileData({ ...profileData, youtube: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                    placeholder="youtube.com/..."
+                                />
+                            </div>
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Bio</label>
                                 <textarea
@@ -218,11 +302,14 @@ export default function ProfilePage() {
                                 />
                             </div>
                         </div>
+                        {/* Manual Save button hidden since auto-save is active, but kept in code for emergency */}
+                        {/* 
                         <div className="mt-4 flex justify-end">
                             <Button onClick={handleSaveProfile} disabled={savingProfile}>
                                 {savingProfile ? "Saving..." : "Save Changes"}
                             </Button>
-                        </div>
+                        </div> 
+                        */}
                     </div>
                 </div>
 

@@ -51,7 +51,10 @@ export async function getEventsOrderedByDate(
     if (category && category !== "All") params.append("category", category);
 
     const res = await fetch(`${API_URL}/events?${params.toString()}`);
-    if (!res.ok) throw new Error("Failed to fetch events");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || "Failed to fetch events");
+    }
     return res.json();
 }
 
@@ -151,7 +154,10 @@ export async function getEventAttendees(eventId: string) {
 export async function getUserProfile(userId: string) {
     // Disable cache to ensure fresh data (Phone/Name updates) are reflected immediately
     const res = await fetch(`${API_URL}/users/${userId}`, { cache: "no-store" });
-    if (!res.ok) throw new Error("Failed to fetch user profile");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || "Failed to fetch user profile");
+    }
     return res.json();
 }
 
@@ -161,7 +167,10 @@ export async function updateUserProfile(userId: string, data: any) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error("Failed to update profile");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || "Failed to update profile");
+    }
     return res.json();
 }
 

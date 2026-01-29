@@ -1,38 +1,86 @@
 import { NextResponse } from 'next/server';
+import pool from '@/lib/mysql';
 
-const MOCK_EVENTS = [
-    {
-        id: 'mock-1',
-        title: 'Corner Club Grand Opening',
-        description: 'Join us for the grand opening of Corner Club! Meet new people and enjoy the vibe.',
-        date: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 days from now
-        location: 'Cyber Hub, Gurgaon',
-        city: 'Gurgaon',
-        category: 'Social',
-        price: 0,
-        image: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80',
-        organizer: { name: 'Corner Team' },
-        status: 'approved',
-        attendees: 120,
-        capacity: 200
-    },
-    {
-        id: 'mock-2',
-        title: 'Tech Networking Night',
-        description: 'Connect with tech enthusiasts and founders in your city.',
-        date: new Date(Date.now() + 86400000 * 5).toISOString(),
-        location: 'WeWork, Bangalore',
-        city: 'Bangalore',
-        category: 'Networking',
-        price: 500,
-        image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80',
-        organizer: { name: 'Tech Bangalore' },
-        status: 'approved',
-        attendees: 45,
-        capacity: 100
+export async function GET(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const limitVal = parseInt(searchParams.get('limit') || '50');
+        const city = searchParams.get('city');
+        const category = searchParams.get('category');
+
+        let query = `
+      SELECT e.*, u.name as creatorName, u.profileImage as creatorAvatar 
+      FROM events e 
+      LEFT JOIN users u ON e.creatorId = u.id 
+      WHERE e.status = 'approved' AND e.date >= NOW()
+    `;
+        let params: any[] = [];
+
+        if (city && city !== "All") {
+            query += " AND e.city = ?";
+            params.push(city);
+        }
+        if (category && category !== "All") {
+            query += " AND e.category = ?";
+            params.push(category);
+        }
+
+        query += " ORDER BY e.date ASC LIMIT ?";
+        params.push(limitVal);
+
+        const [rows]: any = await pool.query(query, params);
+
+        // Format for frontend (nest creator info and parse JSON)
+        const enrichedEvents = rows.map((row: any) => ({
+            ...row,
+            social: typeof row.social === 'string' ? JSON.parse(row.social || '{}') : row.social,
+            gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : row.gallery,
+            creator: {
+                name: row.creatorName,
+                avatar: row.creatorAvatar
+            }
+        }));
+
+        return NextResponse.json(enrichedEvents);
+    } catch (error: any) {
+        console.error("Error fetching events:", error);
+        return NextResponse.json({ error: "Failed to fetch events", details: error.message }, { status: 500 });
     }
-];
+}
 
-export async function GET() {
-    return NextResponse.json(MOCK_EVENTS);
+export async function POST(request: Request) {
+    try {
+        const data = await request.json();
+        const {
+            id, title, description, date, time, location, city, category,
+            price, currency, image, capacity, creatorId, organizer, phone, address, social, gallery
+        } = data;
+
+        const query = `
+      INSERT INTO events (
+        id, title, description, date, time, location, city, category, 
+        price, currency, image, capacity, creatorId, organizer, phone, address, social, gallery, status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+      ON DUPLICATE KEY UPDATE 
+      title=?, description=?, date=?, time=?, location=?, city=?, category=?, 
+      price=?, currency=?, image=?, capacity=?, organizer=?, phone=?, address=?, social=?, gallery=?, status='pending'
+    `;
+
+        const socialJson = JSON.stringify(social || {});
+        const galleryJson = JSON.stringify(gallery || []);
+
+        const params = [
+            id || `evt_${Date.now()}`, title, description, date, time, location, city, category,
+            price, currency || 'INR', image, capacity, creatorId, organizer, phone, address, socialJson, galleryJson,
+            title, description, date, time, location, city, category,
+            price, currency || 'INR', image, capacity, organizer, phone, address, socialJson, galleryJson
+        ];
+
+        await pool.query(query, params);
+        return NextResponse.json({ success: true, message: "Event created and pending approval" });
+    } catch (error: any) {
+        console.error("Error creating event:", error);
+        return NextResponse.json({ error: "Failed to create event", details: error.message }, { status: 500 });
+    }
 }
