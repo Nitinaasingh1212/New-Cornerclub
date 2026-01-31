@@ -10,7 +10,23 @@ export async function GET(
         const [rows]: any = await pool.query("SELECT * FROM users WHERE id = ?", [userId]);
 
         if (rows.length > 0) {
-            return NextResponse.json(rows[0]);
+            const user = rows[0];
+            // Parse JSON fields safely
+            try {
+                user.portfolio = typeof user.portfolio === 'string' ? JSON.parse(user.portfolio || '[]') : (user.portfolio || []);
+            } catch (e) {
+                console.error("Error parsing portfolio:", e);
+                user.portfolio = [];
+            }
+
+            try {
+                user.social = typeof user.social === 'string' ? JSON.parse(user.social || '{}') : (user.social || {});
+            } catch (e) {
+                console.error("Error parsing social:", e);
+                user.social = {};
+            }
+
+            return NextResponse.json(user);
         } else {
             return NextResponse.json({ id: userId }, { status: 404 });
         }

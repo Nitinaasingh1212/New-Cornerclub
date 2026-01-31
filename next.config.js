@@ -19,6 +19,11 @@ const nextConfig = {
     },
 
     compress: true,
+    experimental: {
+        serverActions: {
+            bodySizeLimit: '10mb',
+        },
+    },
     // rewrites removed as we are using internal API routes now
 };
 

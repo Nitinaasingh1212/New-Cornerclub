@@ -7,12 +7,15 @@ export async function GET(request: Request) {
         const limitVal = parseInt(searchParams.get('limit') || '50');
         const city = searchParams.get('city');
         const category = searchParams.get('category');
+        const lastDate = searchParams.get('lastDate'); // Cursor support
+        const lastId = searchParams.get('lastId'); // Cursor support
 
+        // Use a 6-hour window so events don't disappear exactly at start time
         let query = `
       SELECT e.*, u.name as creatorName, u.profileImage as creatorAvatar 
       FROM events e 
       LEFT JOIN users u ON e.creatorId = u.id 
-      WHERE e.status = 'approved' AND e.date >= NOW()
+      WHERE e.status = 'approved' AND e.date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
     `;
         let params: any[] = [];
 
@@ -25,7 +28,13 @@ export async function GET(request: Request) {
             params.push(category);
         }
 
-        query += " ORDER BY e.date ASC LIMIT ?";
+        // Cursor logic
+        if (lastDate && lastId) {
+            query += " AND (e.date > ? OR (e.date = ? AND e.id > ?))";
+            params.push(lastDate, lastDate, lastId);
+        }
+
+        query += " ORDER BY e.date ASC, e.id ASC LIMIT ?";
         params.push(limitVal);
 
         const [rows]: any = await pool.query(query, params);
@@ -50,11 +59,26 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const data = await request.json();
+        const contentLength = request.headers.get('content-length');
+        console.log(`[POST /api/events] Received request. Content-Length: ${contentLength} bytes`);
+
+        let data;
+        try {
+            data = await request.json();
+        } catch (jsonError: any) {
+            console.error("[POST /api/events] JSON Parse Error:", jsonError);
+            return NextResponse.json({
+                error: "Invalid JSON or payload too large",
+                details: jsonError.message
+            }, { status: 400 });
+        }
+
         const {
             id, title, description, date, time, location, city, category,
             price, currency, image, capacity, creatorId, organizer, phone, address, social, gallery
         } = data;
+
+        console.log(`[POST /api/events] Title: ${title}, Creator: ${creatorId}, Images: ${image ? 'Present' : 'Missing'}, Gallery count: ${gallery?.length || 0}`);
 
         const query = `
       INSERT INTO events (
@@ -77,10 +101,26 @@ export async function POST(request: Request) {
             price, currency || 'INR', image, capacity, organizer, phone, address, socialJson, galleryJson
         ];
 
-        await pool.query(query, params);
+        try {
+            await pool.query(query, params);
+        } catch (dbError: any) {
+            console.error("[POST /api/events] Database Error:", dbError);
+            if (dbError.code === 'ER_NET_PACKET_TOO_LARGE') {
+                return NextResponse.json({
+                    error: "The image or data is too large for the database.",
+                    details: "Try a smaller image or fewer photos."
+                }, { status: 413 });
+            }
+            throw dbError; // rethrow for outer catch
+        }
+
         return NextResponse.json({ success: true, message: "Event created and pending approval" });
     } catch (error: any) {
-        console.error("Error creating event:", error);
-        return NextResponse.json({ error: "Failed to create event", details: error.message }, { status: 500 });
+        console.error("[POST /api/events] Unexpected Error:", error);
+        return NextResponse.json({
+            error: "Failed to create event",
+            details: error.message,
+            code: error.code
+        }, { status: 500 });
     }
 }

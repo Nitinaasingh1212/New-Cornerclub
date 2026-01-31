@@ -8,9 +8,9 @@ import { EventCard } from "@/app/components/EventCard";
 import { useEvents } from "@/context/EventsContext";
 
 export default function Home() {
-  const { events, loadMore, hasMore, loading, refetch } = useEvents();
-  const [activeCategory, setActiveCategory] = useState<string>("All");
-  const [selectedCity, setSelectedCity] = useState<string>("Lucknow");
+  const { events, loadMore, hasMore, loading, refetch, filters } = useEvents();
+  const [activeCategory, setActiveCategory] = useState<string>(filters.category);
+  const [selectedCity, setSelectedCity] = useState<string>(filters.city);
   const [savedOnly, setSavedOnly] = useState(false);
 
   // Trigger backend fetch when filters change

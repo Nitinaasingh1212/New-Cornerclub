@@ -12,6 +12,7 @@ interface EventsContextType {
     hasMore: boolean;
     loading: boolean;
     refetch: (city: string, category: string) => Promise<void>;
+    filters: { city: string, category: string };
 }
 
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
@@ -78,7 +79,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
 
     // Initial load
     useEffect(() => {
-        fetchEventsList();
+        fetchEventsList(false, filtersRef.current.city, filtersRef.current.category);
     }, [fetchEventsList]);
 
     const loadMore = useCallback(async () => {
@@ -113,7 +114,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <EventsContext.Provider value={{ events, addEvent, loadMore, hasMore, loading, refetch }}>
+        <EventsContext.Provider value={{ events, addEvent, loadMore, hasMore, loading, refetch, filters }}>
             {children}
         </EventsContext.Provider>
     );

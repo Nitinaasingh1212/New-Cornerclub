@@ -305,7 +305,7 @@ export default function EventDetailsClient({ id }: { id: string | null }) {
         isVerified: true, // Always show verified badge as requested
         phone: event.creator?.phone || creatorProfile?.phone,
         social: event.social || event.creator?.social || creatorProfile?.social || {},
-        portfolio: creatorProfile?.portfolio || [] // Array of image URLs
+        portfolio: Array.isArray(creatorProfile?.portfolio) ? creatorProfile.portfolio : [] // Array of image URLs
     };
 
     const mapAddress = event.address || event.location;
@@ -463,7 +463,7 @@ export default function EventDetailsClient({ id }: { id: string | null }) {
                                         </div>
                                     ))}
                                     {/* Fallback or additional Portfolio images (optional: can hide if event gallery exists) */}
-                                    {(!event.gallery?.length && creatorInfo.portfolio?.map((img: string, idx: number) => (
+                                    {(!event.gallery?.length && Array.isArray(creatorInfo.portfolio) && creatorInfo.portfolio.map((img: string, idx: number) => (
                                         <div key={`portfolio-${idx}`} className="aspect-square relative group overflow-hidden rounded-lg bg-zinc-100">
                                             <img src={img} alt={`Portfolio ${idx}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                                         </div>

@@ -3,18 +3,19 @@ import pool from '@/lib/mysql';
 
 export async function GET(
     request: Request,
-    { params }: { params: { userId: string; eventId: string } }
+    { params }: { params: Promise<{ userId: string, eventId: string }> }
 ) {
     try {
         const { userId, eventId } = await params;
+
         const [rows]: any = await pool.query(
-            "SELECT 1 FROM favorites WHERE userId = ? AND eventId = ?",
+            "SELECT * FROM favorites WHERE userId = ? AND eventId = ?",
             [userId, eventId]
         );
 
         return NextResponse.json({ isFavorited: rows.length > 0 });
     } catch (error: any) {
         console.error("Error checking favorite:", error);
-        return NextResponse.json({ error: "Failed to check favorite" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to check favorite", details: error.message }, { status: 500 });
     }
 }

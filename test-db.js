@@ -17,8 +17,11 @@ async function testConnection() {
 
         console.log("✅ Success! Connected to MySQL.");
 
-        const [rows] = await connection.execute('SHOW TABLES');
-        console.log("Tables found:", rows);
+        const [tables] = await connection.execute('SHOW TABLES');
+        console.log("Tables found:", tables);
+
+        const [events] = await connection.execute('SELECT COUNT(*) as count FROM events');
+        console.log("Events count:", events[0].count);
 
         await connection.end();
     } catch (err) {
